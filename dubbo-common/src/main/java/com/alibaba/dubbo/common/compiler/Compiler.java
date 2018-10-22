@@ -22,7 +22,7 @@ import com.alibaba.dubbo.common.extension.SPI;
 /**
  * Compiler. (SPI, Singleton, ThreadSafe)
  */
-@SPI("javassist")
+@SPI("javassist")// 默认的实现是 javassist
 public interface Compiler {
 
     /**

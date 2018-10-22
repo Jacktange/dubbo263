@@ -36,6 +36,10 @@ public class ProtocolFilterWrapper implements Protocol {
 
     private final Protocol protocol;
 
+    /**
+     *  Wrapper，复制构造函数。有一个参数是Protocol的复制构造函数
+     * @param protocol
+     */
     public ProtocolFilterWrapper(Protocol protocol) {
         if (protocol == null) {
             throw new IllegalArgumentException("protocol == null");

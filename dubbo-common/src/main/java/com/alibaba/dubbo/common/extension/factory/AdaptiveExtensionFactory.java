@@ -27,12 +27,12 @@ import java.util.List;
 /**
  * AdaptiveExtensionFactory
  */
-@Adaptive
+@Adaptive// 自适应类
 public class AdaptiveExtensionFactory implements ExtensionFactory {
 
     private final List<ExtensionFactory> factories;
 
-    public AdaptiveExtensionFactory() {
+    public AdaptiveExtensionFactory() {// Dubbo内置了两个ExtensionFactory(SpiExtensionFactory和SpringExtensionFactory)，分别从Dubbo自身的扩展机制和Spring容器中去寻找
         ExtensionLoader<ExtensionFactory> loader = ExtensionLoader.getExtensionLoader(ExtensionFactory.class);
         List<ExtensionFactory> list = new ArrayList<ExtensionFactory>();
         for (String name : loader.getSupportedExtensions()) {
@@ -43,10 +43,10 @@ public class AdaptiveExtensionFactory implements ExtensionFactory {
 
     @Override
     public <T> T getExtension(Class<T> type, String name) {
-        for (ExtensionFactory factory : factories) {
+        for (ExtensionFactory factory : factories) {// 遍历所有的ExtensionFactory实现
             T extension = factory.getExtension(type, name);
             if (extension != null) {
-                return extension;
+                return extension;// 找到了就返回
             }
         }
         return null;
