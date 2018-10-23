@@ -53,23 +53,27 @@ public class HeaderExchangeServer implements ExchangeServer {
                     true));
     private final Server server;
     // heartbeat timer
-    private ScheduledFuture<?> heartbeatTimer;
+    private ScheduledFuture<?> heartbeatTimer;// 心跳定时器
     // heartbeat timeout (ms), default value is 0 , won't execute a heartbeat.
     private int heartbeat;
     private int heartbeatTimeout;
     private AtomicBoolean closed = new AtomicBoolean(false);
 
+    /**
+     *  提供心跳机制 - 定时往dubbo服务器发送数据
+     * @param server
+     */
     public HeaderExchangeServer(Server server) {
         if (server == null) {
             throw new IllegalArgumentException("server == null");
         }
         this.server = server;
-        this.heartbeat = server.getUrl().getParameter(Constants.HEARTBEAT_KEY, 0);
-        this.heartbeatTimeout = server.getUrl().getParameter(Constants.HEARTBEAT_TIMEOUT_KEY, heartbeat * 3);
+        this.heartbeat = server.getUrl().getParameter(Constants.HEARTBEAT_KEY, 0);// 心跳超时默认0毫秒
+        this.heartbeatTimeout = server.getUrl().getParameter(Constants.HEARTBEAT_TIMEOUT_KEY, heartbeat * 3);// 连着3次超时，就认为连接关闭
         if (heartbeatTimeout < heartbeat * 2) {
             throw new IllegalStateException("heartbeatTimeout < heartbeatInterval * 2");
         }
-        startHeartbeatTimer();
+        startHeartbeatTimer();// 开始心跳
     }
 
     public Server getServer() {
@@ -253,12 +257,12 @@ public class HeaderExchangeServer implements ExchangeServer {
     }
 
     private void startHeartbeatTimer() {
-        stopHeartbeatTimer();
-        if (heartbeat > 0) {
+        stopHeartbeatTimer();// 开始之前，关闭心跳定时
+        if (heartbeat > 0) {// 每隔heartbeat时间执行一次
             heartbeatTimer = scheduled.scheduleWithFixedDelay(
                     new HeartBeatTask(new HeartBeatTask.ChannelProvider() {
                         @Override
-                        public Collection<Channel> getChannels() {
+                        public Collection<Channel> getChannels() {// 获取channels
                             return Collections.unmodifiableCollection(
                                     HeaderExchangeServer.this.getChannels());
                         }

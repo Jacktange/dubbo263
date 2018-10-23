@@ -224,12 +224,21 @@ public class DubboProtocol extends AbstractProtocol {
         return DEFAULT_PORT;
     }
 
+    /**
+     *  Dubbo协议暴露服务
+     *   export() -> openServer() ->createServer()
+     * @param invoker Service invoker
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
         URL url = invoker.getUrl();
 
-        // export service.
-        String key = serviceKey(url);
+        // export service. 暴露服务
+        // com.alibaba.dubbo.demo.DemoService:20880 没有指定serviceGroup和serviceVersion
+        String key = serviceKey(url);// 格式：gruop/serviceName:version:port
         DubboExporter<T> exporter = new DubboExporter<T>(invoker, key, exporterMap);
         exporterMap.put(key, exporter);
 
@@ -248,20 +257,24 @@ public class DubboProtocol extends AbstractProtocol {
             }
         }
 
-        openServer(url);
+        openServer(url);// 开启服务
         optimizeSerialization(url);
         return exporter;
     }
 
+    /**
+     *  如果已经创建过服务，那么就reset,否则创建服务
+     * @param url
+     */
     private void openServer(URL url) {
         // find server.
-        String key = url.getAddress();
+        String key = url.getAddress();// 192.168.31.127:20880
         //client can export a service which's only for server to invoke
         boolean isServer = url.getParameter(Constants.IS_SERVER_KEY, true);
         if (isServer) {
             ExchangeServer server = serverMap.get(key);
             if (server == null) {
-                serverMap.put(key, createServer(url));
+                serverMap.put(key, createServer(url));// 创建服务
             } else {
                 // server supports reset, use together with override
                 server.reset(url);
@@ -269,20 +282,27 @@ public class DubboProtocol extends AbstractProtocol {
         }
     }
 
+    /**
+     *  创建服务，在服务外面包装了一个HeaderExchangeServer，主要是提供心跳机制
+     * @param url
+     * @return
+     */
     private ExchangeServer createServer(URL url) {
         // send readonly event when server closes, it's enabled by default
+        //默认开启server关闭时发送readonly事件 - &channel.readonly.sent=true
         url = url.addParameterIfAbsent(Constants.CHANNEL_READONLYEVENT_SENT_KEY, Boolean.TRUE.toString());
-        // enable heartbeat by default
+        // enable heartbeat by default 默认开启heartbeat - 60s - &heartbeat=60000
         url = url.addParameterIfAbsent(Constants.HEARTBEAT_KEY, String.valueOf(Constants.DEFAULT_HEARTBEAT));
+        // 未指定Server，默认使用 Netty
         String str = url.getParameter(Constants.SERVER_KEY, Constants.DEFAULT_REMOTING_SERVER);
 
         if (str != null && str.length() > 0 && !ExtensionLoader.getExtensionLoader(Transporter.class).hasExtension(str))
             throw new RpcException("Unsupported server type: " + str + ", url: " + url);
 
-        url = url.addParameter(Constants.CODEC_KEY, DubboCodec.NAME);
+        url = url.addParameter(Constants.CODEC_KEY, DubboCodec.NAME);// codec
         ExchangeServer server;
         try {
-            server = Exchangers.bind(url, requestHandler);
+            server = Exchangers.bind(url, requestHandler);// HeaderExchanger服务端绑定
         } catch (RemotingException e) {
             throw new RpcException("Fail to start server(url: " + url + ") " + e.getMessage(), e);
         }

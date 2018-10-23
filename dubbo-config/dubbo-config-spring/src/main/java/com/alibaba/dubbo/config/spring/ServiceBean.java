@@ -114,13 +114,18 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
         return service;
     }
 
+    /**
+     *  ApplicationListener<ContextRefreshedEvent>
+     *  实现ApplicationListener接口监听ContextRefreshedEvent事件 - 容器加载完成事件
+     * @param event
+     */
     @Override
     public void onApplicationEvent(ContextRefreshedEvent event) {
         if (isDelay() && !isExported() && !isUnexported()) {
             if (logger.isInfoEnabled()) {
                 logger.info("The service ready on spring started. service: " + getInterface());
             }
-            export();
+            export();// 开始暴露 - ServiceConfig.export
         }
     }
 

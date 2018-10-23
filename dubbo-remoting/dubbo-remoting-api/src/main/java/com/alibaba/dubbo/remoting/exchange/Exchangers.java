@@ -67,7 +67,7 @@ public class Exchangers {
             throw new IllegalArgumentException("handler == null");
         }
         url = url.addParameterIfAbsent(Constants.CODEC_KEY, "exchange");
-        return getExchanger(url).bind(url, handler);
+        return getExchanger(url).bind(url, handler);// 返回 HeaderExchanger
     }
 
     public static ExchangeClient connect(String url) throws RemotingException {
@@ -111,11 +111,11 @@ public class Exchangers {
 
     public static Exchanger getExchanger(URL url) {
         String type = url.getParameter(Constants.EXCHANGER_KEY, Constants.DEFAULT_EXCHANGER);
-        return getExchanger(type);
+        return getExchanger(type);// type='header'
     }
 
     public static Exchanger getExchanger(String type) {
-        return ExtensionLoader.getExtensionLoader(Exchanger.class).getExtension(type);
+        return ExtensionLoader.getExtensionLoader(Exchanger.class).getExtension(type);// @SPI("header")
     }
 
 }

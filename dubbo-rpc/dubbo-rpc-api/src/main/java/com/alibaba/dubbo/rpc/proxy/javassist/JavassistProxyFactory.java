@@ -35,6 +35,14 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
         return (T) Proxy.getProxy(interfaces).newInstance(new InvokerInvocationHandler(invoker));
     }
 
+    /**
+     *
+     * @param proxy - 传入的ref，即接口实现类
+     * @param type - interfaceClass，服务接口
+     * @param url - 前面拼接出来的URL
+     * @param <T>
+     * @return
+     */
     @Override
     public <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) {
         // TODO Wrapper cannot handle this scenario correctly: the classname contains '$'
@@ -44,6 +52,7 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
             protected Object doInvoke(T proxy, String methodName,
                                       Class<?>[] parameterTypes,
                                       Object[] arguments) throws Throwable {
+                // 通过其内部的wrapper对象调用proxy对象来完成
                 return wrapper.invokeMethod(proxy, methodName, parameterTypes, arguments);
             }
         };
