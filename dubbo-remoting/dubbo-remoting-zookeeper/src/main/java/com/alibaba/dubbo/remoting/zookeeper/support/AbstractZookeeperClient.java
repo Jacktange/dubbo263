@@ -50,9 +50,14 @@ public abstract class AbstractZookeeperClient<TargetChildListener> implements Zo
         return url;
     }
 
+    /**
+     *  以递归的方式创建节点
+     * @param path
+     * @param ephemeral
+     */
     @Override
     public void create(String path, boolean ephemeral) {
-        if (!ephemeral) {
+        if (!ephemeral) {// 持久化节
             if (checkExists(path)) {
                 return;
             }
@@ -61,9 +66,9 @@ public abstract class AbstractZookeeperClient<TargetChildListener> implements Zo
         if (i > 0) {
             create(path.substring(0, i), false);
         }
-        if (ephemeral) {
+        if (ephemeral) {// 临时节点
             createEphemeral(path);
-        } else {
+        } else {// 持久化节点
             createPersistent(path);
         }
     }
@@ -94,7 +99,7 @@ public abstract class AbstractZookeeperClient<TargetChildListener> implements Zo
             listeners.putIfAbsent(listener, createTargetChildListener(path, listener));
             targetListener = listeners.get(listener);
         }
-        return addTargetChildListener(path, targetListener);
+        return addTargetChildListener(path, targetListener);// 调用 AbstractZookeeperClient.addTargetChildListener()
     }
 
     @Override

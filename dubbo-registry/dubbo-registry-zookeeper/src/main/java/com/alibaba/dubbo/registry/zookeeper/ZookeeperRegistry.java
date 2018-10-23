@@ -38,6 +38,10 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * ZookeeperRegistry
+ *  ZookeeperRegistry流程
+ *  服务提供者启动时，向/dubbo/com.foo.BarService/providers目录下写入自己的URL地址。
+ *  服务消费者启动时，订阅/dubbo/com.foo.BarService/providers目录下的提供者URL地址。并向/dubbo/com.foo.BarService/consumers目录下写入自己的URL地址。
+ *  监控中心启动时，订阅/dubbo/com.foo.BarService目录下的所有提供者和消费者URL地址。
  *
  */
 public class ZookeeperRegistry extends FailbackRegistry {
@@ -111,6 +115,7 @@ public class ZookeeperRegistry extends FailbackRegistry {
     @Override
     protected void doRegister(URL url) {
         try {
+            // 调用zkClient创建一个节点。 create（）以递归的方式创建节点，通过判断Url中dynamic=false 判断创建的是持久化节点还是临时节点。
             zkClient.create(toUrlPath(url), url.getParameter(Constants.DYNAMIC_KEY, true));
         } catch (Throwable e) {
             throw new RpcException("Failed to register " + url + " to zookeeper " + getUrl() + ", cause: " + e.getMessage(), e);
@@ -126,6 +131,11 @@ public class ZookeeperRegistry extends FailbackRegistry {
         }
     }
 
+    /**
+     *  订阅Zookeeper节点
+     * @param url
+     * @param listener
+     */
     @Override
     protected void doSubscribe(final URL url, final NotifyListener listener) {
         try {
@@ -137,7 +147,7 @@ public class ZookeeperRegistry extends FailbackRegistry {
                     listeners = zkListeners.get(url);
                 }
                 ChildListener zkListener = listeners.get(listener);
-                if (zkListener == null) {
+                if (zkListener == null) {// 通过创建ChildListener来实现的
                     listeners.putIfAbsent(listener, new ChildListener() {
                         @Override
                         public void childChanged(String parentPath, List<String> currentChilds) {
@@ -154,7 +164,7 @@ public class ZookeeperRegistry extends FailbackRegistry {
                     zkListener = listeners.get(listener);
                 }
                 zkClient.create(root, false);
-                List<String> services = zkClient.addChildListener(root, zkListener);
+                List<String> services = zkClient.addChildListener(root, zkListener);// 具体调用的方法是 addChildListener()
                 if (services != null && !services.isEmpty()) {
                     for (String service : services) {
                         service = URL.decode(service);

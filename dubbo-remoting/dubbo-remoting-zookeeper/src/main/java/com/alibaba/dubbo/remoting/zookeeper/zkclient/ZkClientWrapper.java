@@ -126,7 +126,7 @@ public class ZkClientWrapper {
 
     public List<String> subscribeChildChanges(String path, final IZkChildListener listener) {
         Assert.notNull(client, new IllegalStateException("Zookeeper is not connected yet!"));
-        return client.subscribeChildChanges(path, listener);
+        return client.subscribeChildChanges(path, listener);// 最后调用ZkclientZookeeperClient ZkClientd.watchForChilds()
     }
 
     public void unsubscribeChildChanges(String path, IZkChildListener listener) {

@@ -40,6 +40,10 @@ import java.util.concurrent.TimeUnit;
  * FailbackRegistry. (SPI, Prototype, ThreadSafe)
  *
  */
+
+/**
+ *  失败自动恢复
+ */
 public abstract class FailbackRegistry extends AbstractRegistry {
 
     // Scheduled executor service
@@ -71,7 +75,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             public void run() {
                 // Check and connect to the registry
                 try {
-                    retry();
+                    retry();// 在构造函数中会通过 ScheduledExecutorService 一直执行Retry方法进行重试
                 } catch (Throwable t) { // Defensive fault tolerance
                     logger.error("Unexpected error occur at failed retry, cause: " + t.getMessage(), t);
                 }
@@ -308,6 +312,9 @@ public abstract class FailbackRegistry extends AbstractRegistry {
     }
 
     // Retry the failed actions
+    /**
+     *  从各个操作中的失败列表取出失败的操作进行重试
+     */
     protected void retry() {
         if (!failedRegistered.isEmpty()) {
             Set<URL> failed = new HashSet<URL>(failedRegistered);

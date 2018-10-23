@@ -75,10 +75,17 @@ public abstract class AbstractRegistry implements Registry {
     // Local disk cache file
     private File file;
 
+    /**
+     *  提供了对注册中心数据的文件缓存。
+     * @param url
+     */
     public AbstractRegistry(URL url) {
         setUrl(url);
         // Start file save timer
         syncSaveFile = url.getParameter(Constants.REGISTRY_FILESAVE_SYNC_KEY, false);
+        // 在用户目录创建./dubbo文件夹及缓存文件
+        //C:\Users\Administrator\.dubbo
+        //dubbo-registry-demo-provider-127.0.0.1 dubbo-registry-demo-consumer-127.0.0.1
         String filename = url.getParameter(Constants.FILE_KEY, System.getProperty("user.home") + "/.dubbo/dubbo-registry-" + url.getParameter(Constants.APPLICATION_KEY) + "-" + url.getAddress() + ".cache");
         File file = null;
         if (ConfigUtils.isNotEmpty(filename)) {
