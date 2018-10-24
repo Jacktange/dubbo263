@@ -77,6 +77,12 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
         return true;
     }
 
+    /**
+     *  为装载应用信息、注册、模块、监控等配置，然后调用getObject()
+     *  实现了 InitializingBean#afterPropertiesSet() - Spring为Bean提供的初始化方法
+     *   afterPropertiesSet() -> getObject() -> get() -> init() -> createProxy()
+     * @throws Exception
+     */
     @Override
     @SuppressWarnings({"unchecked"})
     public void afterPropertiesSet() throws Exception {
@@ -173,7 +179,7 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
             b = getConsumer().isInit();
         }
         if (b != null && b.booleanValue()) {
-            getObject();
+            getObject();// 返回 get()  执行结果
         }
     }
 
