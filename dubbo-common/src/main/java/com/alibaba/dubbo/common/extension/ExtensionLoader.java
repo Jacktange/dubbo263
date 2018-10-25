@@ -508,7 +508,7 @@ public class ExtensionLoader<T> {
 
     @SuppressWarnings("unchecked")
     private T createExtension(String name) {
-        Class<?> clazz = getExtensionClasses().get(name);// 根据扩展点名称取出扩展类
+        Class<?> clazz = getExtensionClasses().get(name);// 根据扩展点名称取出扩展类(拿到Class才能在下面实例化出对象)
         if (clazz == null) {
             throw findException(name);
         }
@@ -533,7 +533,7 @@ public class ExtensionLoader<T> {
     }
 
     /**
-     *  依赖注入扩展类实例，对扩展实例的依赖自动装配
+     *  依赖注入扩展类实例，对扩展实例的依赖自动装配 - ExtensionFactory 的作用
      * @param instance
      * @return
      */
@@ -554,7 +554,7 @@ public class ExtensionLoader<T> {
                             // SpiExtensionFactory(Dubbo自己的Spi去加载Extension)和SpringExtensionFactory(从Spring容器中去加载Extension)
                             Object object = objectFactory.getExtension(pt, property);
                             if (object != null) {
-                                method.invoke(instance, object);
+                                method.invoke(instance, object);// 把实例对象通过 setter 方法注入
                             }
                         } catch (Exception e) {
                             logger.error("fail to inject via method " + method.getName()
@@ -581,7 +581,7 @@ public class ExtensionLoader<T> {
     }
 
     /**
-     *  获取扩展类
+     *  获取扩展类所有的Class
      * @return
      */
     private Map<String, Class<?>> getExtensionClasses() {
@@ -626,7 +626,7 @@ public class ExtensionLoader<T> {
     }
 
     private void loadDirectory(Map<String, Class<?>> extensionClasses, String dir) {
-        String fileName = dir + type.getName();
+        String fileName = dir + type.getName();// 某个SPI接口的类路径全名
         try {
             Enumeration<java.net.URL> urls;
             ClassLoader classLoader = findClassLoader();// 找加载类所需的ClassLoader
@@ -704,7 +704,7 @@ public class ExtensionLoader<T> {
             }
             wrappers.add(clazz);// 缓存起来，供以后创建Extension实例的时候，使用这些包装类依次包装原始扩展点
         } else {
-            clazz.getConstructor();// 确保有默认的无参构造器
+            clazz.getConstructor();// 获取不带参的构造函数，确保有默认的无参构造器
             if (name == null || name.length() == 0) {
                 name = findAnnotationName(clazz);
                 if (name.length() == 0) {
@@ -714,7 +714,7 @@ public class ExtensionLoader<T> {
             String[] names = NAME_SEPARATOR.split(name);
             if (names != null && names.length > 0) {
                 Activate activate = clazz.getAnnotation(Activate.class);
-                if (activate != null) {
+                if (activate != null) {// 判断类上是否有Activate注解
                     cachedActivates.put(names[0], activate);
                 }
                 for (String n : names) {
@@ -762,7 +762,7 @@ public class ExtensionLoader<T> {
     @SuppressWarnings("unchecked")
     private T createAdaptiveExtension() {
         try {
-            return injectExtension((T) getAdaptiveExtensionClass().newInstance());
+            return injectExtension((T) getAdaptiveExtensionClass().newInstance());// 完成注入，这是 ExtensionFactory 类的作用之所在
         } catch (Exception e) {
             throw new IllegalStateException("Can not create adaptive extension " + type + ", cause: " + e.getMessage(), e);
         }
