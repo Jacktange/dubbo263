@@ -26,6 +26,8 @@ import java.util.List;
 
 /**
  * AbstractLoadBalance
+ *  所有负载均衡策略实现类的父类，实现了LoadBalance接口 的方法，
+ *  同时提供抽象方法交由子类实现
  *
  */
 public abstract class AbstractLoadBalance implements LoadBalance {
@@ -44,8 +46,22 @@ public abstract class AbstractLoadBalance implements LoadBalance {
         return doSelect(invokers, url, invocation);
     }
 
+    /**
+     *  由子类负责实现
+     * @param invokers
+     * @param url
+     * @param invocation
+     * @param <T>
+     * @return
+     */
     protected abstract <T> Invoker<T> doSelect(List<Invoker<T>> invokers, URL url, Invocation invocation);
 
+    /**
+     *  获取权重
+     * @param invoker
+     * @param invocation
+     * @return
+     */
     protected int getWeight(Invoker<?> invoker, Invocation invocation) {
         int weight = invoker.getUrl().getMethodParameter(invocation.getMethodName(), Constants.WEIGHT_KEY, Constants.DEFAULT_WEIGHT);
         if (weight > 0) {

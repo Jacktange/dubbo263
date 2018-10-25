@@ -32,20 +32,30 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * ConsistentHashLoadBalance
+ * 一致性Hash负载均衡
+ * 一致性Hash，相同参数的请求总是发到同一提供者。
+ * 当某一台提供者挂时，原本发往该提供者的请求，基于虚拟节点，平摊到其它提供者，不会引起剧烈变动。
  *
  */
 public class ConsistentHashLoadBalance extends AbstractLoadBalance {
 
     private final ConcurrentMap<String, ConsistentHashSelector<?>> selectors = new ConcurrentHashMap<String, ConsistentHashSelector<?>>();
 
+    /**
+     *  选择一个Invoker
+     * @param invokers
+     * @param url
+     * @param invocation
+     * @param <T>
+     * @return
+     */
     @SuppressWarnings("unchecked")
     @Override
     protected <T> Invoker<T> doSelect(List<Invoker<T>> invokers, URL url, Invocation invocation) {
         String methodName = RpcUtils.getMethodName(invocation);
         String key = invokers.get(0).getUrl().getServiceKey() + "." + methodName;
-        int identityHashCode = System.identityHashCode(invokers);
-        ConsistentHashSelector<T> selector = (ConsistentHashSelector<T>) selectors.get(key);
+        int identityHashCode = System.identityHashCode(invokers);// 一致性Hash
+        ConsistentHashSelector<T> selector = (ConsistentHashSelector<T>) selectors.get(key);// 相同参数的请求总是发到同一提供者
         if (selector == null || selector.identityHashCode != identityHashCode) {
             selectors.put(key, new ConsistentHashSelector<T>(invokers, methodName, identityHashCode));
             selector = (ConsistentHashSelector<T>) selectors.get(key);
@@ -66,8 +76,8 @@ public class ConsistentHashLoadBalance extends AbstractLoadBalance {
         ConsistentHashSelector(List<Invoker<T>> invokers, String methodName, int identityHashCode) {
             this.virtualInvokers = new TreeMap<Long, Invoker<T>>();
             this.identityHashCode = identityHashCode;
-            URL url = invokers.get(0).getUrl();
-            this.replicaNumber = url.getMethodParameter(methodName, "hash.nodes", 160);
+            URL url = invokers.get(0).getUrl();// 获取Invoker的Url
+            this.replicaNumber = url.getMethodParameter(methodName, "hash.nodes", 160);// 根据invokers的url获取分片个数
             String[] index = Constants.COMMA_SPLIT_PATTERN.split(url.getMethodParameter(methodName, "hash.arguments", "0"));
             argumentIndex = new int[index.length];
             for (int i = 0; i < index.length; i++) {
@@ -75,10 +85,10 @@ public class ConsistentHashLoadBalance extends AbstractLoadBalance {
             }
             for (Invoker<T> invoker : invokers) {
                 String address = invoker.getUrl().getAddress();
-                for (int i = 0; i < replicaNumber / 4; i++) {
+                for (int i = 0; i < replicaNumber / 4; i++) {// 创建与分片个数相同大小的虚拟节点
                     byte[] digest = md5(address + i);
                     for (int h = 0; h < 4; h++) {
-                        long m = hash(digest, h);
+                        long m = hash(digest, h);// 根据参数的MD5值 获取对应的提供者
                         virtualInvokers.put(m, invoker);
                     }
                 }

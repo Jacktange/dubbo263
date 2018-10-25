@@ -27,6 +27,18 @@ import com.alibaba.dubbo.rpc.cluster.loadbalance.RandomLoadBalance;
 import java.util.List;
 
 /**
+ * Dubbo 负载均衡策略提供下列四种方式：
+ * (1)Random LoadBalance 随机，按权重设置随机概率。 Dubbo的默认负载均衡策略
+ * 在一个截面上碰撞的概率高，但调用量越大分布越均匀，而且按概率使用权重后也比较均匀，有利于动态调整提供者权重。
+ * (2)RoundRobin LoadBalance 轮循，按公约后的权重设置轮循比率。
+ * 存在慢的提供者累积请求问题，比如：第二台机器很慢，但没挂，当请求调到第二台时就卡在那，久而久之，所有请求都卡在调到第二台上。
+ * (3)LeastActive LoadBalance 最少活跃调用数，相同活跃数的随机，活跃数指调用前后计数差。
+ * 使慢的提供者收到更少请求，因为越慢的提供者的调用前后计数差会越大。
+ * (4)ConsistentHash LoadBalance 一致性Hash，相同参数的请求总是发到同一提供者。
+ * 当某一台提供者挂时，原本发往该提供者的请求，基于虚拟节点，平摊到其它提供者，不会引起剧烈变动。
+ */
+
+/**
  * LoadBalance. (SPI, Singleton, ThreadSafe)
  * <p>
  * <a href="http://en.wikipedia.org/wiki/Load_balancing_(computing)">Load-Balancing</a>
@@ -37,7 +49,7 @@ import java.util.List;
 public interface LoadBalance {
 
     /**
-     * select one invoker in list.
+     * 从 invokers 列表中选取一个
      *
      * @param invokers   invokers.
      * @param url        refer url
