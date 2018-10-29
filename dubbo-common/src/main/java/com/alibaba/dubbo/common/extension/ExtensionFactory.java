@@ -18,6 +18,7 @@ package com.alibaba.dubbo.common.extension;
 
 /**
  * ExtensionFactory
+ *  IOC的作用
  */
 @SPI
 public interface ExtensionFactory {

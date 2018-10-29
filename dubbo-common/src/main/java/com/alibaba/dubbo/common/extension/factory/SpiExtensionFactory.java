@@ -30,6 +30,9 @@ public class SpiExtensionFactory implements ExtensionFactory {
         if (type.isInterface() && type.isAnnotationPresent(SPI.class)) {
             ExtensionLoader<T> loader = ExtensionLoader.getExtensionLoader(type);
             if (!loader.getSupportedExtensions().isEmpty()) {
+                // SpiExtensionFactory其实啥都没干，最后还是
+                // loader.getAdaptiveExtension()方法在负责IOC，
+                // SpiExtensionFactory只可以理解成是一个门面类的作用
                 return loader.getAdaptiveExtension();
             }
         }

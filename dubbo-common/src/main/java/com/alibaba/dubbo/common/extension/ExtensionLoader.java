@@ -96,6 +96,7 @@ public class ExtensionLoader<T> {
     private ExtensionLoader(Class<?> type) {
         this.type = type;
         // 如果扩展点类型本身就是 ExtensionFactory ，则其ExtensionFactory为空。否则使用 ExtensionFactory 工厂去加载 自适应扩展的 ExtensionFactory
+        //所有的SPI类（除ExtensionFactory之外）对应的ExtensionLoader实例的objectFactory属性的类型都是AdaptiveExtensionFactory类
         objectFactory = (type == ExtensionFactory.class ? null : ExtensionLoader.getExtensionLoader(ExtensionFactory.class).getAdaptiveExtension());
     }
 
@@ -533,18 +534,18 @@ public class ExtensionLoader<T> {
     }
 
     /**
-     *  依赖注入扩展类实例，对扩展实例的依赖自动装配 - ExtensionFactory 的作用
-     * @param instance
+     *  依赖注入扩展类实例，对扩展实例的依赖自动装配 - ExtensionFactory 的作用(IOC)
+     * @param instance SPI实现类的实例对象
      * @return
      */
     private T injectExtension(T instance) {
         try {
             if (objectFactory != null) {
                 for (Method method : instance.getClass().getMethods()) {
-                    if (method.getName().startsWith("set")// 查找 setter 方法
-                            && method.getParameterTypes().length == 1// 只有一个参数
-                            && Modifier.isPublic(method.getModifiers())) {
-                        Class<?> pt = method.getParameterTypes()[0];
+                    if (method.getName().startsWith("set")// (1)查找 setter 方法
+                            && method.getParameterTypes().length == 1// (2)只有一个参数
+                            && Modifier.isPublic(method.getModifiers())) {// (3)是Public方法
+                        Class<?> pt = method.getParameterTypes()[0];// 获取set的参数类型
                         try {// setAsqbh 取出属性为 asqbh
                             String property = method.getName().length() > 3 ? // 截取属性
                                     method.getName().substring(3, 4).toLowerCase() + method.getName().substring(4) : "";
@@ -553,6 +554,7 @@ public class ExtensionLoader<T> {
                             //默认有三个实现：AdaptiveExtensionFactory(自适应的AdaptiveExtension)、
                             // SpiExtensionFactory(Dubbo自己的Spi去加载Extension)和SpringExtensionFactory(从Spring容器中去加载Extension)
                             Object object = objectFactory.getExtension(pt, property);
+                            // 此时我们就可以将ExtensionFactory看作容器，判断这个要set的属性在容器中是否存在
                             if (object != null) {
                                 method.invoke(instance, object);// 把实例对象通过 setter 方法注入
                             }
@@ -770,13 +772,24 @@ public class ExtensionLoader<T> {
 
     private Class<?> getAdaptiveExtensionClass() {
         getExtensionClasses();
-        if (cachedAdaptiveClass != null) {
+        if (cachedAdaptiveClass != null) {// 在找到的类上有@Adaptive注解
             return cachedAdaptiveClass;
         }
         // 没有配置@Adaptive，则自动生成一个
         return cachedAdaptiveClass = createAdaptiveExtensionClass();
     }
 
+    /**
+     *  获取某个SPI接口的adaptive实现类的规则是：
+     *  (1)实现类的类上面有Adaptive注解的，那么这个类就是adaptive类
+     *  (2)实现类的类上面没有Adaptive注解，但是在方法上有Adaptive注解，则会动态生成adaptive类
+     *
+     *  生成的动态类的编译类是：com.alibaba.dubbo.common.compiler.support.AdaptiveCompiler类
+     *
+     *  动态类的本质是可以做到一个SPI中的不同的Adaptive方法可以去调不同的SPI实现类去处理。使得程序的灵活性大大提高。这才是整套SPI设计的一个精华之所在
+     *
+     * @return
+     */
     private Class<?> createAdaptiveExtensionClass() {
         String code = createAdaptiveExtensionClassCode();// 组装Java源码
         ClassLoader classLoader = findClassLoader();// 找ClassLoader
@@ -785,6 +798,14 @@ public class ExtensionLoader<T> {
         return compiler.compile(code, classLoader);// 编译成字节码，加载到Java虚拟机中
     }
 
+    /**
+     * 只有当相应的SPI接口的所有方法上是否有带Adaptive注解的方法，如果有就会生成动态类的代码然后进行动态编译
+     *  如果没有带Adaptive注解的方法 ,那就说明该SPI接口是没有Adaptive性质的实现类的，就会拋出异常。
+     *      动态类的本质也是在实现相应的SPI接口,它最终也是在调一个现成的SPI实现类来工作，这样就会有这样的疑问，
+     *  那为何不直接指定呢，还非得用动态的呢，呵呵，这就是为什么凡是在方法上出现Adaptive注解的SPI的Adaptive形式都要动态的原因了，
+     *  因为dubbo这样一来就可以做到用不同的Adaptive方法，调不同的SPI实现类去处理。
+     * @return
+     */
     private String createAdaptiveExtensionClassCode() {
         StringBuilder codeBuilder = new StringBuilder();
         Method[] methods = type.getMethods();
@@ -799,7 +820,7 @@ public class ExtensionLoader<T> {
         if (!hasAdaptiveAnnotation)// 没有 @Adaptive，不需要生成adaptive类
             throw new IllegalStateException("No adaptive method on extension " + type.getName() + ", refuse to create the adaptive class!");
 
-        codeBuilder.append("package ").append(type.getPackage().getName()).append(";");
+        codeBuilder.append("package ").append(type.getPackage().getName()).append(";");// 动态类的包名就是相应的SPI接口的包名
         codeBuilder.append("\nimport ").append(ExtensionLoader.class.getName()).append(";");// 引入 ExtensionLoader
         // 生成的自适应扩展类的名字是：接口名+'$Adaptive' 类似 Protocol$Adpative
         codeBuilder.append("\npublic class ").append(type.getSimpleName()).append("$Adaptive").append(" implements ").append(type.getCanonicalName()).append(" {");
@@ -811,7 +832,7 @@ public class ExtensionLoader<T> {
 
             Adaptive adaptiveAnnotation = method.getAnnotation(Adaptive.class);
             StringBuilder code = new StringBuilder(512);
-            if (adaptiveAnnotation == null) {// 没有标注 @Adaptive 的方法
+            if (adaptiveAnnotation == null) {// 没有标注 @Adaptive 的方法，生成的方法代码统统在方法体内抛出UnsupportedOperationException
                 code.append("throw new UnsupportedOperationException(\"method ")
                         .append(method.toString()).append(" of interface ")
                         .append(type.getName()).append(" is not adaptive method!\");");
@@ -871,6 +892,8 @@ public class ExtensionLoader<T> {
                     code.append(s);
                 }
 
+                // 获取方法上的Adaptive注解的value值，如果没有就以SPI接口名做为默认的value，
+                // 但是会把大写字母前+".",并转小写字母这样进行处理
                 String[] value = adaptiveAnnotation.value();
                 // value is not set, use the value generated from class name as the key
                 if (value.length == 0) {// Adaptive的注解没有指定值
@@ -902,19 +925,22 @@ public class ExtensionLoader<T> {
                     }
                 }
 
-                String defaultExtName = cachedDefaultName;
+                String defaultExtName = cachedDefaultName;// SPI注解中的value值
                 String getNameCode = null;
                 for (int i = value.length - 1; i >= 0; --i) {// value不为空
                     if (i == value.length - 1) {
                         if (null != defaultExtName) {
+                            // 如果SPI注解提供了默认扩展名，且方法的@Adaptive注解中的value有 "protocol"
                             if (!"protocol".equals(value[i]))
+                                // 方法参数中有com.alibaba.dubbo.rpc.Invocation类型的参数，则方法参数上还应有URL这样的参数 ,
+                                // 并从url上获取看是否有 SPI的name参数，如没有就使用SPI注解的value
                                 if (hasInvocation)
                                     getNameCode = String.format("url.getMethodParameter(methodName, \"%s\", \"%s\")", value[i], defaultExtName);
-                                else
+                                else// 意思类似上面，只是获取的位置不同
                                     getNameCode = String.format("url.getParameter(\"%s\", \"%s\")", value[i], defaultExtName);
-                            else
+                            else// 方法的Adaptive注解上的value没有"protocol"
                                 getNameCode = String.format("( url.getProtocol() == null ? \"%s\" : url.getProtocol() )", defaultExtName);
-                        } else {
+                        } else {// 如果SPI注解上没提供默认扩展名
                             if (!"protocol".equals(value[i]))
                                 if (hasInvocation)
                                     getNameCode = String.format("url.getMethodParameter(methodName, \"%s\", \"%s\")", value[i], defaultExtName);

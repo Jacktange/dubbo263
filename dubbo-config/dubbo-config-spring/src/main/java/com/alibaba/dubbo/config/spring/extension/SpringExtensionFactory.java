@@ -48,10 +48,17 @@ public class SpringExtensionFactory implements ExtensionFactory {
         contexts.clear();
     }
 
+    /**
+     *  AdaptiveExtensionFactory#getExtension
+     * @param type object type.
+     * @param name object name.
+     * @param <T>
+     * @return
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getExtension(Class<T> type, String name) {
-        for (ApplicationContext context : contexts) {
+        for (ApplicationContext context : contexts) {// 从Spring的容器中去获取
             if (context.containsBean(name)) {
                 Object bean = context.getBean(name);
                 if (type.isInstance(bean)) {

@@ -35,12 +35,23 @@ public class AdaptiveExtensionFactory implements ExtensionFactory {
     public AdaptiveExtensionFactory() {// Dubbo内置了两个ExtensionFactory(SpiExtensionFactory和SpringExtensionFactory)，分别从Dubbo自身的扩展机制和Spring容器中去寻找
         ExtensionLoader<ExtensionFactory> loader = ExtensionLoader.getExtensionLoader(ExtensionFactory.class);
         List<ExtensionFactory> list = new ArrayList<ExtensionFactory>();
+        // spring=com.alibaba.dubbo.config.spring.extension.SpringExtensionFactory
+        // spi=com.alibaba.dubbo.common.extension.factory.SpiExtensionFactory
+        //因为adaptive=com.alibaba.dubbo.common.extension.factory.AdaptiveExtensionFactory是保存在cachedAdaptiveClass上的
         for (String name : loader.getSupportedExtensions()) {
             list.add(loader.getExtension(name));
         }
         factories = Collections.unmodifiableList(list);
     }
 
+    /**
+     *  只要分析清楚AdaptiveExtensionFactory类的getExtension方法，
+     *  就可以明白这个IOC容器是如何取出需要的SPI实例依赖了
+     * @param type object type.
+     * @param name object name.
+     * @param <T>
+     * @return
+     */
     @Override
     public <T> T getExtension(Class<T> type, String name) {
         for (ExtensionFactory factory : factories) {// 遍历所有的ExtensionFactory实现
