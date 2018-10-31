@@ -1,2 +1,4 @@
+# dubbo的配置其实就是建立在spring的命名空间的配置机制之上
+# 用来配置spring的命名空间和解析类的对应关系
 http\://dubbo.apache.org/schema/dubbo=com.alibaba.dubbo.config.spring.schema.DubboNamespaceHandler
 http\://code.alibabatech.com/schema/dubbo=com.alibaba.dubbo.config.spring.schema.DubboNamespaceHandler

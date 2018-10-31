@@ -71,27 +71,37 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
         this.required = required;
     }
 
+    /**
+     *  把dubbo的命名空间上的配置转成相应的BeanDefinition类，
+     *  以便IOC容器进行后续的实例化和注入工作
+     * @param element
+     * @param parserContext
+     * @param beanClass
+     * @param required
+     * @return
+     */
     @SuppressWarnings("unchecked")
     private static BeanDefinition parse(Element element, ParserContext parserContext, Class<?> beanClass, boolean required) {
-        RootBeanDefinition beanDefinition = new RootBeanDefinition();
-        beanDefinition.setBeanClass(beanClass);
+        RootBeanDefinition beanDefinition = new RootBeanDefinition();// 创建BeanDefinition实例
+        beanDefinition.setBeanClass(beanClass);// 设置这个beanDefinition要实例化的类，又称beanClass, 此处的beanClass，就是DubboBeanDefinitionParser类的构造方法中的第一个参数-ReferenceBean.class
         beanDefinition.setLazyInit(false);
-        String id = element.getAttribute("id");
+        String id = element.getAttribute("id");// 先获取元素的id属性作为bean的id
         if ((id == null || id.length() == 0) && required) {
-            String generatedBeanName = element.getAttribute("name");
+            String generatedBeanName = element.getAttribute("name");// 如果没有id属性，则获取元素的name属性
             if (generatedBeanName == null || generatedBeanName.length() == 0) {
+                // 如果name属性也没设，那么如果这个解析的beanClass是ProtocolConfig.class,一般对应的xml元素是 <dubbo:protocol>，那么id为dubbo，也就说明默认protocol为dubbo
                 if (ProtocolConfig.class.equals(beanClass)) {
                     generatedBeanName = "dubbo";
-                } else {
+                } else {// 如果name属性没设，且不是ProtocolConfig.class这个情况，则获取interface属性作为id
                     generatedBeanName = element.getAttribute("interface");
                 }
             }
-            if (generatedBeanName == null || generatedBeanName.length() == 0) {
+            if (generatedBeanName == null || generatedBeanName.length() == 0) {// 如果name属性、interface属性都没设置，且也不是ProtocolConfig.class那么就直接取beanClass的类名作为id
                 generatedBeanName = beanClass.getName();
             }
             id = generatedBeanName;
             int counter = 2;
-            while (parserContext.getRegistry().containsBeanDefinition(id)) {
+            while (parserContext.getRegistry().containsBeanDefinition(id)) {// 对id做去重处理
                 id = generatedBeanName + (counter++);
             }
         }
@@ -102,7 +112,7 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
             parserContext.getRegistry().registerBeanDefinition(id, beanDefinition);
             beanDefinition.getPropertyValues().addPropertyValue("id", id);
         }
-        if (ProtocolConfig.class.equals(beanClass)) {
+        if (ProtocolConfig.class.equals(beanClass)) {// 进行进一步的处理，把当前解析的beandefinition设置到其他的已注册的beandefinition中
             for (String name : parserContext.getRegistry().getBeanDefinitionNames()) {
                 BeanDefinition definition = parserContext.getRegistry().getBeanDefinition(name);
                 PropertyValue property = definition.getPropertyValues().getPropertyValue("protocol");
@@ -114,28 +124,36 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
                 }
             }
         } else if (ServiceBean.class.equals(beanClass)) {
-            String className = element.getAttribute("class");
+            /*
+            <dubbo:service interface="org.huxin.dubbo.test.user.service.UserInterface" ref="userService" protocol="dubbo" retries="0" />
+            <bean id="userService" class="org.huxin.dubbo.test.user.service.impl.UserService" />
+            替换为(但一般情况下<bean id="userService"/>都是注解驱动的)：
+            <dubbo:service interface="org.huxin.dubbo.test.user.service.UserInterface" class="org.huxin.dubbo.test.user.service.impl.UserService" protocol="dubbo" retries="0">
+            </dubbo:service>
+             */
+            String className = element.getAttribute("class");// 获取<dubbo:service/>的class属性
             if (className != null && className.length() > 0) {
-                RootBeanDefinition classDefinition = new RootBeanDefinition();
+                RootBeanDefinition classDefinition = new RootBeanDefinition();// 定义新的BeanDefinition为classDefinition
                 classDefinition.setBeanClass(ReflectUtils.forName(className));
                 classDefinition.setLazyInit(false);
-                parseProperties(element.getChildNodes(), classDefinition);
+                parseProperties(element.getChildNodes(), classDefinition);// 解析属性
                 beanDefinition.getPropertyValues().addPropertyValue("ref", new BeanDefinitionHolder(classDefinition, id + "Impl"));
             }
-        } else if (ProviderConfig.class.equals(beanClass)) {
+        } else if (ProviderConfig.class.equals(beanClass)) {// 处理 <dubbo:provider/>下面的子元素<dubbo:service/>
             parseNested(element, parserContext, ServiceBean.class, true, "service", "provider", id, beanDefinition);
-        } else if (ConsumerConfig.class.equals(beanClass)) {
+        } else if (ConsumerConfig.class.equals(beanClass)) {// 处理<dubbo:consumer/>下面的子元素<dubbo:reference/>
             parseNested(element, parserContext, ReferenceBean.class, false, "reference", "consumer", id, beanDefinition);
         }
         Set<String> props = new HashSet<String>();
         ManagedMap parameters = null;
+        // 对beanClass的setter和getter的属性做进一步处理，beanClass类如(ApplicationConfig.class、ModuleConfig.class、RegistryConfig.class、 ServiceBean.class等等)
         for (Method setter : beanClass.getMethods()) {
             String name = setter.getName();
             if (name.length() > 3 && name.startsWith("set")
                     && Modifier.isPublic(setter.getModifiers())
-                    && setter.getParameterTypes().length == 1) {
+                    && setter.getParameterTypes().length == 1) {// 获取beanClass类的某个属性的setter方法
                 Class<?> type = setter.getParameterTypes()[0];
-                String property = StringUtils.camelToSplitName(name.substring(3, 4).toLowerCase() + name.substring(4), "-");
+                String property = StringUtils.camelToSplitName(name.substring(3, 4).toLowerCase() + name.substring(4), "-");// 从setter方法中截取出property
                 props.add(property);
                 Method getter = null;
                 try {
@@ -149,8 +167,10 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
                 if (getter == null
                         || !Modifier.isPublic(getter.getModifiers())
                         || !type.equals(getter.getReturnType())) {
-                    continue;
+                    continue;// 如果没有,则结束对这个property的处理
                 }
+                //  如果property是"parameters“、”methods“ 、”arguments“中的某一个，则会解析当前元素的子元素，
+                // 看是否有这些元素需要处理，处理完成后会分别在beanDefinition中添加"parameters“、”methods“ 、”arguments“这些属性
                 if ("parameters".equals(property)) {
                     parameters = parseParameters(element.getChildNodes(), beanDefinition);
                 } else if ("methods".equals(property)) {
@@ -162,6 +182,8 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
                     if (value != null) {
                         value = value.trim();
                         if (value.length() > 0) {
+                            // 针对property是这几种情况的进行处理(取出property的value，实例化特定的类，放入beanDefinition中)：
+                            //registry(单个） 、registry(多个）、 provider（多个） 、 protocol（多个）
                             if ("registry".equals(property) && RegistryConfig.NO_AVAILABLE.equalsIgnoreCase(value)) {
                                 RegistryConfig registryConfig = new RegistryConfig();
                                 registryConfig.setAddress(RegistryConfig.NO_AVAILABLE);
@@ -230,7 +252,7 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
                 }
             }
         }
-        NamedNodeMap attributes = element.getAttributes();
+        NamedNodeMap attributes = element.getAttributes();// 处理其他的一些属性
         int len = attributes.getLength();
         for (int i = 0; i < len; i++) {
             Node node = attributes.item(i);
