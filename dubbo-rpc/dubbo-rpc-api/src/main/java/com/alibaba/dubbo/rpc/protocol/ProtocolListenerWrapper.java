@@ -52,8 +52,11 @@ public class ProtocolListenerWrapper implements Protocol {
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
         if (Constants.REGISTRY_PROTOCOL.equals(invoker.getUrl().getProtocol())) {
-            return protocol.export(invoker);
+            return protocol.export(invoker);// 暴露服务返回结果exporter对象
         }
+        // "exporter.listener"
+        // 根据Dubbo的SPI扩展机制获取所有实现了ExporterListener的监听器listeners
+        //装饰exporter, 在构造器中遍历listeners构建export的监听链，实现Exproter<T>接口，在unexport方法实现中构建unexport的监听链
         return new ListenerExporterWrapper<T>(protocol.export(invoker),
                 Collections.unmodifiableList(ExtensionLoader.getExtensionLoader(ExporterListener.class)
                         .getActivateExtension(invoker.getUrl(), Constants.EXPORTER_LISTENER_KEY)));
@@ -70,8 +73,11 @@ public class ProtocolListenerWrapper implements Protocol {
     @Override
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
         if (Constants.REGISTRY_PROTOCOL.equals(url.getProtocol())) {
-            return protocol.refer(type, url);
+            return protocol.refer(type, url);// 暴露服务返回结果invoker对象
         }
+        // "invoker.listener"
+        // 根据Dubbo的SPI扩展机制获取所有实现了InvokerListener的监听器listeners
+        //装饰invoker, 在构造器中遍历listeners构建referer的监听链，实现Invoker<T>接口，在destory方法实现中构建destory的监听链
         return new ListenerInvokerWrapper<T>(protocol.refer(type, url),
                 Collections.unmodifiableList(
                         ExtensionLoader.getExtensionLoader(InvokerListener.class)

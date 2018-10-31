@@ -56,6 +56,9 @@ public class DubboProtocolExtensionFactoryTest {
         ExtensionLoader extensionLoader = ExtensionLoader.getExtensionLoader(Protocol.class);
         Protocol protocol = (Protocol) extensionLoader.getExtension("dubbo");
         System.out.println(protocol);
+        // 输出：com.alibaba.dubbo.rpc.protocol.ProtocolFilterWrapper@567d299b
+        //Protocol对象已经是经过包装了，而且是有两个包装对象类：
+        //com.alibaba.dubbo.rpc.protocol.ProtocolFilterWrapper 和 com.alibaba.dubbo.rpc.protocol.ProtocolListenerWrapper
     }
 
 }

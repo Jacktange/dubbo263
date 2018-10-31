@@ -520,9 +520,10 @@ public class ExtensionLoader<T> {
                 instance = (T) EXTENSION_INSTANCES.get(clazz);
             }
             injectExtension(instance);// 依赖注入扩展类的实例：IOC 扩展实例自动装配
-            Set<Class<?>> wrapperClasses = cachedWrapperClasses;
+            Set<Class<?>> wrapperClasses = cachedWrapperClasses;// AOP切面包装
             if (wrapperClasses != null && !wrapperClasses.isEmpty()) {// 如果有Wrapper，添加Wrapper：AOP 扩展实例自动包装
                 for (Class<?> wrapperClass : wrapperClasses) {
+                    // 用wrapper类的实例代替原有的instance ，但注意原有的instance作为wrapper的构造参数传入其内部了
                     instance = injectExtension((T) wrapperClass.getConstructor(type).newInstance(instance));
                 }
             }

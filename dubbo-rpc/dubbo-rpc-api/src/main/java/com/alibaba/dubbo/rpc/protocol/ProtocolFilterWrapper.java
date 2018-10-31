@@ -31,6 +31,8 @@ import java.util.List;
 
 /**
  * ListenerProtocol
+ *  Filter：一种递归的链式调用，用来在远程调用真正执行的前后加入一些逻辑，
+ *  跟aop的拦截器servlet中filter概念一样的
  */
 public class ProtocolFilterWrapper implements Protocol {
 
@@ -101,6 +103,8 @@ public class ProtocolFilterWrapper implements Protocol {
         if (Constants.REGISTRY_PROTOCOL.equals(invoker.getUrl().getProtocol())) {
             return protocol.export(invoker);
         }
+        // 服务暴露，"provider"
+        //构建服务提供者调用过滤器链
         return protocol.export(buildInvokerChain(invoker, Constants.SERVICE_FILTER_KEY, Constants.PROVIDER));
     }
 
@@ -117,6 +121,8 @@ public class ProtocolFilterWrapper implements Protocol {
         if (Constants.REGISTRY_PROTOCOL.equals(url.getProtocol())) {// "registry"
             return protocol.refer(type, url);
         }
+        // 服务引用，"consumer"
+        //构建服务消费者调用过滤器链
         return buildInvokerChain(protocol.refer(type, url), Constants.REFERENCE_FILTER_KEY, Constants.CONSUMER);
     }
 
