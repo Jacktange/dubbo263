@@ -120,7 +120,7 @@ public class NetUtils {
                 || host.length() == 0
                 || host.equalsIgnoreCase("localhost")
                 || host.equals("0.0.0.0")
-                || (LOCAL_IP_PATTERN.matcher(host).matches());
+                || (LOCAL_IP_PATTERN.matcher(host).matches());// Pattern.compile("127(\\.\\d{1,3}){3}$");
     }
 
     public static boolean isValidLocalHost(String host) {

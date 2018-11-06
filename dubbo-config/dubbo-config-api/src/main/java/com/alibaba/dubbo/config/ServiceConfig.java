@@ -196,6 +196,11 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
     /**
      *  暴露服务 export() -> doExport() -> doExportUrls() -> doExportUrlsFor1Protocol();
+     *  被调用位置：
+     *   ServiceBean#onApplicationEvent()
+     *  触发的时机：
+     *  (1) Spring容器初始化完成所有的bean实例后，通过事件机制触发;
+     *  (2) 实现InitializingBean的方法中进行触发.
      */
     public synchronized void export() {
         if (provider != null) {
@@ -211,6 +216,8 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         }
 
         if (delay != null && delay > 0) {// 是否延迟暴露
+            // 开启一个子线程，在子线程中进行延迟服务暴露的工作，此前是使用一个守护线程
+            // thread.setDaemon(true); thread.setName("DelayExportServiceThread"); thread.start();
             delayExportExecutor.schedule(new Runnable() {
                 @Override
                 public void run() {
@@ -372,7 +379,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     private void doExportUrls() {
         List<URL> registryURLs = loadRegistries(true);// 获取注册中心发布的URL
         for (ProtocolConfig protocolConfig : protocols) {// 获取配置的服务暴露协议
-            doExportUrlsFor1Protocol(protocolConfig, registryURLs);
+            doExportUrlsFor1Protocol(protocolConfig, registryURLs);// 真正的暴露，通过协议和注册中心去完成暴露
         }
     }
 
@@ -384,7 +391,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     private void doExportUrlsFor1Protocol(ProtocolConfig protocolConfig, List<URL> registryURLs) {
         String name = protocolConfig.getName();
         if (name == null || name.length() == 0) {
-            name = "dubbo";
+            name = "dubbo";// 默认dubbo协议
         }
 
         // 收集各类参数，放入map中，在为服务暴露做参数收集准备
@@ -401,6 +408,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         appendParameters(map, protocolConfig);
         appendParameters(map, this);
         if (methods != null && !methods.isEmpty()) {
+
             for (MethodConfig method : methods) {// 服务接口的方法
                 appendParameters(map, method, method.getName());
                 String retryKey = method.getName() + ".retry";
@@ -454,6 +462,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                     }
                 }
             } // end of methods for
+
         }
 
         if (ProtocolUtils.isGeneric(generic)) {// 泛化方式
@@ -578,7 +587,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             ServiceClassHolder.getInstance().pushServiceClass(getServiceClass(ref));
             // 默认Protocol是dubbo,所以此处的Protocol应是 com.alibaba.dubbo.rpc.protocol.dubbo.DubboProtocol类的实例
             Exporter<?> exporter = protocol.export(
-                    proxyFactory.getInvoker(ref, (Class) interfaceClass, local));// 默认使用Javassist产生Invoker对象
+                    proxyFactory.getInvoker(ref, (Class) interfaceClass, local));// 默认使用Javassist产生Invoker对象. ProxyFactory.getInvoker()供服务提供者使用
             exporters.add(exporter);
             logger.info("Export dubbo service " + interfaceClass.getName() + " to local registry");
         }
